@@ -8,6 +8,7 @@ Undangan digital React + Vite bertema Midnight Royal Romance. Frontend menggunak
 - Backend: Express dan `mysql2/promise`; seluruh query MySQL menggunakan parameter prepared statement.
 - Tabel lama `wedding_rsvps` dan `wedding_wishes` dipertahankan untuk menjaga data yang sudah ada.
 - Konten undangan berada di `wedding_settings`, `couples`, `events`, `gallery_photos`, dan `love_story`.
+- Rekening untuk fitur kirim hadiah berada di `wedding_gift_accounts`; akun awal dapat diedit langsung di database.
 - RSVP publik hanya menerima data; API tidak menyediakan endpoint baca RSVP.
 - Tidak ada tabel `admins` karena belum ada fitur/admin panel.
 - `@supabase/supabase-js` dan `supabase/schema.sql` dipertahankan. MySQL menjadi jalur utama jika `VITE_API_URL` diatur; jika tidak, Supabase lama dapat digunakan sebagai fallback RSVP/ucapan.

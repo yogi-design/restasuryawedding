@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDown, CalendarDays, ChevronLeft, ChevronRight, Clock3, Heart, MapPin, Music2, Pause, Play, Send, X } from 'lucide-react';
+import { ArrowDown, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Copy, Gift, Heart, MapPin, Music2, Pause, Play, Send, X } from 'lucide-react';
 import { wedding as defaultWedding } from './data/weddingConfig';
 import { isApiConfigured, loadInvitation, loadWishes, submitRsvpAndWish } from './lib/api';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
@@ -122,10 +122,12 @@ function App() {
   const musicPlayerRef = useRef(null);
   const [opened, setOpened] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(null);
+  const [giftOpen, setGiftOpen] = useState(false);
   const [invitation, setInvitation] = useState(defaultWedding);
   const [rsvp, setRsvp] = useState({ name: '', attendance: 'Hadir', guests: '1', message: '' });
   const [wishes, setWishes] = useState([]);
   const [rsvpStatus, setRsvpStatus] = useState('');
+  const [giftStatus, setGiftStatus] = useState('');
   const [databaseError, setDatabaseError] = useState('');
   const [busy, setBusy] = useState(false);
   const wedding = invitation;
@@ -174,8 +176,25 @@ function App() {
         if (alive && data) {
           setWishes(data.map((item) => ({ id: item.id, name: item.guest_name, message: item.message })));
         }
-      } catch {
-        if (alive) setDatabaseError('Tidak dapat memuat ucapan dari Supabase.');
+        const { data: giftAccount, error: giftError } = await supabase
+          .from('wedding_gift_accounts')
+          .select('bank_name, account_number, account_name')
+          .eq('id', 1)
+          .single();
+
+        if (giftError) throw giftError;
+        if (alive) {
+          setInvitation((current) => ({
+            ...current,
+            giftAccount: {
+              bank: giftAccount.bank_name || '',
+              accountNumber: giftAccount.account_number,
+              accountName: giftAccount.account_name,
+            },
+          }));
+        }
+      } catch (error) {
+        if (alive) setDatabaseError(error.message || 'Tidak dapat memuat data dari Supabase.');
       }
     };
 
@@ -197,6 +216,22 @@ function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [galleryIndex]);
+
+  useEffect(() => {
+    if (!giftOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const onKey = (event) => {
+      if (event.key === 'Escape') setGiftOpen(false);
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [giftOpen]);
 
   const handleRsvpSubmit = async (event) => {
     event.preventDefault();
@@ -250,6 +285,17 @@ function App() {
     }
   };
 
+  const handleCopyAccount = async () => {
+    setGiftStatus('');
+
+    try {
+      await navigator.clipboard.writeText(wedding.giftAccount.accountNumber);
+      setGiftStatus('Nomor rekening berhasil disalin.');
+    } catch {
+      setGiftStatus('Nomor rekening belum dapat disalin. Silakan salin nomor yang tertera.');
+    }
+  };
+
   const gallery = wedding.photos.gallery;
 
   return (
@@ -297,6 +343,7 @@ function App() {
           <a href="#event">Acara</a>
           <a href="#story">Cerita</a>
           <a href="#gallery">Galeri</a>
+          <a href="#gift">Hadiah</a>
           <a href="#rsvp">RSVP</a>
         </nav>
         <MusicPlayer ref={musicPlayerRef} enabled={opened} musicPath={wedding.musicPath} startSeconds={wedding.musicStartSeconds} />
@@ -411,6 +458,16 @@ function App() {
           </div>
         </section>
 
+        <section id="gift" className="section-pad gift-section">
+          <SectionTitle eyebrow="Wedding Gift">Kirim hadiah</SectionTitle>
+          <p className="gift-intro">
+            Kehadiran dan doa Anda adalah hadiah terindah bagi kami. Namun, jika berhalangan hadir dan ingin mengirim tanda kasih, Anda dapat mengirimkannya melalui rekening berikut.
+          </p>
+          <button className="button button-gold gift-open-button" type="button" onClick={() => { setGiftStatus(''); setGiftOpen(true); }}>
+            <Gift size={16} /> Kirim Hadiah
+          </button>
+        </section>
+
         <section id="rsvp" className="section-pad rsvp-section">
           <SectionTitle eyebrow="RSVP & Messages">Konfirmasi kehadiran dan ucapan</SectionTitle>
           <div className="combined-rsvp-layout">
@@ -471,6 +528,57 @@ function App() {
           <p>Terima kasih atas doa dan kehadiran Anda.</p>
         </section>
       </main>
+
+      <AnimatePresence>
+        {giftOpen && (
+          <motion.div
+            className="gift-modal-backdrop"
+            role="presentation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setGiftOpen(false)}
+          >
+            <motion.div
+              className="gift-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="gift-modal-title"
+              initial={{ opacity: 0, y: 18, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button className="gift-modal-close" type="button" onClick={() => setGiftOpen(false)} aria-label="Tutup informasi hadiah">
+                <X size={18} />
+              </button>
+              <div className="gift-icon"><Gift size={22} /></div>
+              <span className="eyebrow">Wedding Gift</span>
+              <h2 id="gift-modal-title">Kirim tanda kasih</h2>
+              <p className="gift-modal-intro">Terima kasih atas perhatian dan doa tulus Anda.</p>
+              <dl className="gift-account-details">
+                <div>
+                  <dt>Nama Bank</dt>
+                  <dd>{wedding.giftAccount.bank || 'Belum tersedia'}</dd>
+                </div>
+                <div>
+                  <dt>No. Rekening</dt>
+                  <dd className="gift-account-number">{wedding.giftAccount.accountNumber}</dd>
+                </div>
+                <div>
+                  <dt>Atas Nama</dt>
+                  <dd>{wedding.giftAccount.accountName}</dd>
+                </div>
+              </dl>
+              <button className="button button-outline gift-copy-button" type="button" onClick={handleCopyAccount}>
+                {giftStatus === 'Nomor rekening berhasil disalin.' ? <Check size={15} /> : <Copy size={15} />}
+                Salin nomor rekening
+              </button>
+              <p className="gift-status" role="status" aria-live="polite">{giftStatus}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {galleryIndex !== null && (

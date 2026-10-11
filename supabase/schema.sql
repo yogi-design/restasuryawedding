@@ -20,8 +20,25 @@ create table if not exists public.wedding_wishes (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.wedding_gift_accounts (
+  id integer primary key check (id = 1),
+  bank_name text,
+  account_number text not null,
+  account_name text not null,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.wedding_gift_accounts (id, bank_name, account_number, account_name)
+values (1, 'BCA', '1482351390', 'Resta Syahwa Hafidza')
+on conflict (id) do nothing;
+
+update public.wedding_gift_accounts
+set bank_name = 'BCA'
+where id = 1 and (bank_name is null or trim(bank_name) = '');
+
 alter table public.wedding_rsvps enable row level security;
 alter table public.wedding_wishes enable row level security;
+alter table public.wedding_gift_accounts enable row level security;
 
 -- RSVP: allow anonymous inserts only; do not expose RSVP list to the public.
 drop policy if exists "Anyone can submit RSVP" on public.wedding_rsvps;
@@ -44,8 +61,13 @@ create policy "Anyone can submit wishes" on public.wedding_wishes
     and char_length(trim(message)) between 1 and 700
   );
 
+drop policy if exists "Anyone can read wedding gift account" on public.wedding_gift_accounts;
+create policy "Anyone can read wedding gift account" on public.wedding_gift_accounts
+  for select to anon, authenticated using (true);
+
 grant insert on public.wedding_rsvps to anon, authenticated;
 grant select, insert on public.wedding_wishes to anon, authenticated;
+grant select on public.wedding_gift_accounts to anon, authenticated;
 
 -- Submit both records in one database transaction when Supabase is the active backend.
 create or replace function public.submit_wedding_rsvp_and_wish(

@@ -62,7 +62,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.get('/api/invitation', async (_req, res) => {
   try {
-    const [[settings], couples, events, gallery, loveStory] = await Promise.all([
+    const [[settings], couples, events, gallery, loveStory, [giftAccount]] = await Promise.all([
       pool.query(
         `SELECT title, DATE_FORMAT(date_iso, '%Y-%m-%dT%H:%i:%s') AS date_iso,
                 date_label, address, intro, cover_image, music_path
@@ -86,9 +86,13 @@ app.get('/api/invitation', async (_req, res) => {
         `SELECT title, story_text, story_date FROM love_story
          WHERE wedding_id = 1 ORDER BY sort_order, created_at`
       ).then(([rows]) => rows),
+      pool.query(
+        `SELECT bank_name, account_number, account_name
+         FROM wedding_gift_accounts WHERE id = 1 LIMIT 1`
+      ).then(([rows]) => rows),
     ]);
 
-    if (!settings || couples.length !== 2 || events.length < 2) {
+    if (!settings || couples.length !== 2 || events.length < 2 || !giftAccount) {
       return res.status(503).json({ message: 'Data undangan belum lengkap. Jalankan database/schema.sql.' });
     }
 
@@ -141,6 +145,11 @@ app.get('/api/invitation', async (_req, res) => {
         text: story.story_text,
         date: story.story_date,
       })),
+      giftAccount: {
+        bank: giftAccount.bank_name || '',
+        accountNumber: giftAccount.account_number,
+        accountName: giftAccount.account_name,
+      },
       musicPath: settings.music_path,
     });
   } catch (error) {

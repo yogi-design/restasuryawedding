@@ -71,6 +71,15 @@ CREATE TABLE IF NOT EXISTS love_story (
     REFERENCES wedding_settings (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS wedding_gift_accounts (
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+  bank_name VARCHAR(80) NULL,
+  account_number VARCHAR(34) NOT NULL,
+  account_name VARCHAR(160) NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT chk_gift_account_id CHECK (id = 1)
+);
+
 -- Keep these existing table names and row formats so earlier RSVP/wish data
 -- remains available. Do not drop or recreate either table during migration.
 CREATE TABLE IF NOT EXISTS wedding_rsvps (
@@ -101,6 +110,13 @@ VALUES
    'Dengan memanjatkan syukur kepada Tuhan Yang Maha Esa, kami mengundang Bapak/Ibu/Saudara/i untuk hadir menyaksikan momen spiritual dan bahagia dalam rangkaian pernikahan kami.',
    '/images/photo1.jpeg',
    '/audio/Resta%20dan%20Surya.mp3');
+
+INSERT IGNORE INTO wedding_gift_accounts (id, bank_name, account_number, account_name)
+VALUES (1, 'BCA', '1482351390', 'Resta Syahwa Hafidza');
+
+UPDATE wedding_gift_accounts
+SET bank_name = 'BCA'
+WHERE id = 1 AND (bank_name IS NULL OR TRIM(bank_name) = '');
 
 UPDATE wedding_settings
 SET music_path = '/audio/Resta%20dan%20Surya.mp3'
