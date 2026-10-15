@@ -211,7 +211,7 @@ async function loadAdminDashboard() {
        FROM wedding_settings WHERE id = 1 LIMIT 1`
     ).then(([rows]) => rows),
     pool.query(
-      `SELECT role, full_name FROM couples
+      `SELECT role, full_name, parents, child_order FROM couples
        WHERE wedding_id = 1 ORDER BY FIELD(role, 'bride', 'groom')`
     ).then(([rows]) => rows),
     pool.query(
@@ -241,6 +241,10 @@ async function loadAdminDashboard() {
     settings: {
       brideName: bride.full_name,
       groomName: groom.full_name,
+      brideChildOrder: bride.child_order,
+      brideParents: bride.parents,
+      groomChildOrder: groom.child_order,
+      groomParents: groom.parents,
       eventDate: settings.event_date,
       address: settings.address,
       bankName: giftAccount.bank_name || '',
@@ -700,6 +704,10 @@ app.put('/api/admin/settings', requireAdmin, requireAllowedOrigin, async (req, r
   const {
     bride_name: brideName,
     groom_name: groomName,
+    bride_child_order: brideChildOrder,
+    bride_parents: brideParents,
+    groom_child_order: groomChildOrder,
+    groom_parents: groomParents,
     event_date: eventDate,
     address,
     bank_name: bankName,
@@ -708,6 +716,10 @@ app.put('/api/admin/settings', requireAdmin, requireAllowedOrigin, async (req, r
   } = req.body || {};
   const cleanBrideName = typeof brideName === 'string' ? brideName.trim() : '';
   const cleanGroomName = typeof groomName === 'string' ? groomName.trim() : '';
+  const cleanBrideChildOrder = typeof brideChildOrder === 'string' ? brideChildOrder.trim() : '';
+  const cleanBrideParents = typeof brideParents === 'string' ? brideParents.trim() : '';
+  const cleanGroomChildOrder = typeof groomChildOrder === 'string' ? groomChildOrder.trim() : '';
+  const cleanGroomParents = typeof groomParents === 'string' ? groomParents.trim() : '';
   const cleanAddress = typeof address === 'string' ? address.trim() : '';
   const cleanBankName = typeof bankName === 'string' ? bankName.trim() : '';
   const cleanAccountNumber = typeof accountNumber === 'string' ? accountNumber.trim() : '';
@@ -716,6 +728,12 @@ app.put('/api/admin/settings', requireAdmin, requireAllowedOrigin, async (req, r
   if (!cleanBrideName || cleanBrideName.length > 160
       || !cleanGroomName || cleanGroomName.length > 160) {
     return res.status(400).json({ message: 'Nama mempelai wajib diisi dan maksimal 160 karakter.' });
+  }
+  if (!cleanBrideChildOrder || cleanBrideChildOrder.length > 80
+      || !cleanGroomChildOrder || cleanGroomChildOrder.length > 80
+      || !cleanBrideParents || cleanBrideParents.length > 200
+      || !cleanGroomParents || cleanGroomParents.length > 200) {
+    return res.status(400).json({ message: 'Urutan anak wajib diisi maksimal 80 karakter dan nama orang tua wajib diisi maksimal 200 karakter.' });
   }
   if (!isValidEventDate(eventDate)) {
     return res.status(400).json({ message: 'Tanggal acara tidak valid.' });
@@ -761,6 +779,14 @@ app.put('/api/admin/settings', requireAdmin, requireAllowedOrigin, async (req, r
     await connection.query(
       'UPDATE couples SET full_name = ? WHERE wedding_id = 1 AND role = ?',
       [cleanGroomName, 'groom']
+    );
+    await connection.query(
+      'UPDATE couples SET child_order = ?, parents = ? WHERE wedding_id = 1 AND role = ?',
+      [cleanBrideChildOrder, cleanBrideParents, 'bride']
+    );
+    await connection.query(
+      'UPDATE couples SET child_order = ?, parents = ? WHERE wedding_id = 1 AND role = ?',
+      [cleanGroomChildOrder, cleanGroomParents, 'groom']
     );
     await connection.query(
       `UPDATE events SET event_date = ?, address = ? WHERE wedding_id = 1`,

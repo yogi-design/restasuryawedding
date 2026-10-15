@@ -87,6 +87,7 @@ Jika `npm run server` menampilkan `EADDRINUSE`, sudah ada proses yang memakai po
 ## Foto, musik, dan konten
 
 - Nama mempelai dan elemen dekoratif memakai Great Vibes dari Google Fonts; font dirilis di bawah SIL Open Font License 1.1 (https://github.com/google/fonts/blob/main/ofl/greatvibes/OFL.txt). DM Sans dan Cormorant Garamond tetap digunakan untuk informasi dan teks panjang.
+- Panel admin pada tab **Pengaturan** dapat mengubah nama, keterangan urutan anak (misalnya “Putri pertama”), serta nama orang tua masing-masing mempelai. Data tersebut disimpan di kolom `child_order` dan `parents` pada tabel `couples`.
 - Foto undangan dan galeri menggunakan `/images/photo1.jpeg` sampai `/images/photo4.jpeg`.
 - Backsound menggunakan `public/audio/Resta dan Surya.mp3` dan mulai diputar dari menit 02:41 saat tombol musik ditekan.
 - Data awal dapat diedit pada tabel `wedding_settings`, `couples`, `events`, `gallery_photos`, dan `love_story`.

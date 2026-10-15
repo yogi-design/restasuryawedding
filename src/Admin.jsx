@@ -21,6 +21,10 @@ import {
 const emptySettings = {
   brideName: '',
   groomName: '',
+  brideChildOrder: '',
+  brideParents: '',
+  groomChildOrder: '',
+  groomParents: '',
   eventDate: '',
   address: '',
   bankName: '',
@@ -125,6 +129,10 @@ function AdminPage() {
       const result = await saveAdminSettings({
         bride_name: settings.brideName,
         groom_name: settings.groomName,
+        bride_child_order: settings.brideChildOrder,
+        bride_parents: settings.brideParents,
+        groom_child_order: settings.groomChildOrder,
+        groom_parents: settings.groomParents,
         event_date: settings.eventDate,
         address: settings.address,
         bank_name: settings.bankName,
@@ -463,6 +471,10 @@ Wassalamualaikum Warahmatullahi Wabarakatuh`;
           <div className="admin-settings-grid">
             <label className="admin-field"><span>Nama mempelai wanita</span><input maxLength={160} required value={settings.brideName} onChange={(event) => setSettings({ ...settings, brideName: event.target.value })} /></label>
             <label className="admin-field"><span>Nama mempelai pria</span><input maxLength={160} required value={settings.groomName} onChange={(event) => setSettings({ ...settings, groomName: event.target.value })} /></label>
+            <label className="admin-field"><span>Keterangan urutan anak mempelai wanita</span><input maxLength={80} required value={settings.brideChildOrder} onChange={(event) => setSettings({ ...settings, brideChildOrder: event.target.value })} placeholder="Putri pertama" /></label>
+            <label className="admin-field"><span>Nama orang tua mempelai wanita</span><input maxLength={200} required value={settings.brideParents} onChange={(event) => setSettings({ ...settings, brideParents: event.target.value })} placeholder="Nama ayah & nama ibu" /></label>
+            <label className="admin-field"><span>Keterangan urutan anak mempelai pria</span><input maxLength={80} required value={settings.groomChildOrder} onChange={(event) => setSettings({ ...settings, groomChildOrder: event.target.value })} placeholder="Putra pertama" /></label>
+            <label className="admin-field"><span>Nama orang tua mempelai pria</span><input maxLength={200} required value={settings.groomParents} onChange={(event) => setSettings({ ...settings, groomParents: event.target.value })} placeholder="Nama ayah & nama ibu" /></label>
             <label className="admin-field"><span>Tanggal acara</span><input type="date" required value={settings.eventDate} onChange={(event) => setSettings({ ...settings, eventDate: event.target.value })} /></label>
             <label className="admin-field admin-field-full"><span>Alamat acara</span><textarea maxLength={500} required rows={3} value={settings.address} onChange={(event) => setSettings({ ...settings, address: event.target.value })} /></label>
             <label className="admin-field"><span>Nama bank</span><input maxLength={80} value={settings.bankName} onChange={(event) => setSettings({ ...settings, bankName: event.target.value })} /></label>
