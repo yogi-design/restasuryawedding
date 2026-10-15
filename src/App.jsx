@@ -1,12 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowDown, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Copy, Gift, Heart, MapPin, Music2, Pause, Play, Send, X } from 'lucide-react';
+import AdminPage from './Admin';
 import { wedding as defaultWedding } from './data/weddingConfig';
-import { isApiConfigured, loadInvitation, loadWishes, submitRsvpAndWish } from './lib/api';
+import { isApiConfigured, loadInvitation, loadWishes, submitGiftReport, submitRsvpAndWish } from './lib/api';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: 'easeOut' } } };
-const dateCalendarUrl = (event, address) => `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${event.title} — Resta & Surya`)}&dates=${event.start.replace(/\+07:00$/, '').replace(/[-:]/g, '')}/${event.end.replace(/\+07:00$/, '').replace(/[-:]/g, '')}&details=${encodeURIComponent('Undangan pernikahan Resta & Surya')}&location=${encodeURIComponent(address)}`;
+const dateCalendarUrl = (event, address, coupleNames) => `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${event.title} — ${coupleNames}`)}&dates=${event.start.replace(/\+07:00$/, '').replace(/[-:]/g, '')}/${event.end.replace(/\+07:00$/, '').replace(/[-:]/g, '')}&details=${encodeURIComponent(`Undangan pernikahan ${coupleNames}`)}&location=${encodeURIComponent(address)}`;
 
 function SectionTitle({ eyebrow, children }) {
   return (
@@ -117,17 +118,20 @@ const MusicPlayer = forwardRef(function MusicPlayer({ enabled, musicPath, startS
   );
 });
 
-function App() {
+function WeddingInvitation() {
   const reduceMotion = useReducedMotion();
   const musicPlayerRef = useRef(null);
   const [opened, setOpened] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(null);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [giftThanksOpen, setGiftThanksOpen] = useState(false);
   const [invitation, setInvitation] = useState(defaultWedding);
   const [rsvp, setRsvp] = useState({ name: '', attendance: 'Hadir', guests: '1', message: '' });
   const [wishes, setWishes] = useState([]);
   const [rsvpStatus, setRsvpStatus] = useState('');
   const [giftStatus, setGiftStatus] = useState('');
+  const [giftReportStatus, setGiftReportStatus] = useState('');
+  const [giftReport, setGiftReport] = useState({ name: '', amount: '' });
   const [databaseError, setDatabaseError] = useState('');
   const [busy, setBusy] = useState(false);
   const wedding = invitation;
@@ -135,6 +139,9 @@ function App() {
   const story = wedding.loveStory?.length
     ? wedding.loveStory
     : [{ title: 'Dua hati, satu tujuan', text: wedding.intro, date: null }];
+  const brideDisplayName = wedding.bride.fullName.trim().split(/\s+/)[0] || wedding.bride.fullName;
+  const groomDisplayName = wedding.groom.fullName.trim().split(/\s+/)[0] || wedding.groom.fullName;
+  const coupleNames = `${brideDisplayName} & ${groomDisplayName}`;
 
   const openInvitation = () => {
     setOpened(true);
@@ -218,11 +225,14 @@ function App() {
   }, [galleryIndex]);
 
   useEffect(() => {
-    if (!giftOpen) return undefined;
+    if (!giftOpen && !giftThanksOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
     const onKey = (event) => {
-      if (event.key === 'Escape') setGiftOpen(false);
+      if (event.key === 'Escape') {
+        setGiftOpen(false);
+        setGiftThanksOpen(false);
+      }
     };
 
     document.body.style.overflow = 'hidden';
@@ -231,7 +241,7 @@ function App() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKey);
     };
-  }, [giftOpen]);
+  }, [giftOpen, giftThanksOpen]);
 
   const handleRsvpSubmit = async (event) => {
     event.preventDefault();
@@ -296,6 +306,40 @@ function App() {
     }
   };
 
+  const handleGiftReportSubmit = async (event) => {
+    event.preventDefault();
+    setGiftReportStatus('');
+    const name = giftReport.name.trim();
+    const amount = giftReport.amount.trim();
+
+    if (!name || name.length > 100 || !/^[1-9]\d{0,17}$/.test(amount)) {
+      setGiftReportStatus('Isi nama dan nominal transfer berupa angka bulat positif.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (isApiConfigured) {
+        await submitGiftReport({ guest_name: name, amount });
+      } else if (isSupabaseConfigured) {
+        const { error } = await supabase.from('wedding_gift_reports').insert({
+          guest_name: name,
+          amount,
+        });
+        if (error) throw error;
+      } else {
+        throw new Error('Formulir hadiah belum tersedia. Konfigurasi database terlebih dahulu.');
+      }
+      setGiftOpen(false);
+      setGiftThanksOpen(true);
+      setGiftReport({ name: '', amount: '' });
+    } catch (error) {
+      setGiftReportStatus(error.message || 'Laporan hadiah belum berhasil dikirim.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const gallery = wedding.photos.gallery;
 
   return (
@@ -323,9 +367,9 @@ function App() {
             >
               <span className="cover-topline">THE WEDDING OF</span>
               <div className="monogram">R<span>&</span>S</div>
-              <h1>Resta <em>&</em> Surya</h1>
+              <h1>{brideDisplayName} <em>&</em> {groomDisplayName}</h1>
               <p className="cover-date">{wedding.dateLabel}</p>
-              <div className="cover-divider"><span>✦</span></div>
+              <div className="cover-divider" aria-hidden="true"><span /></div>
               <p className="cover-invite">Kepada Yth.</p>
               <p className="guest-name">{guestName || 'Bapak/Ibu/Saudara/i'}</p>
               <p className="cover-note">Dengan penuh rasa syukur, kami mengundang Anda untuk menjadi bagian dari hari bahagia kami.</p>
@@ -356,7 +400,7 @@ function App() {
           <div className="hero-content">
             <span className="eyebrow">A CELEBRATION OF LOVE</span>
             <p className="hero-script">The Wedding Of</p>
-            <h1>Resta <em>&</em><br className="mobile-break" /> Surya</h1>
+            <h1>{brideDisplayName} <em>&</em><br className="mobile-break" /> {groomDisplayName}</h1>
             <p className="hero-date">{wedding.dateLabel}</p>
             <a href="#couple" className="scroll-cue"><span>SCROLL TO EXPLORE</span><ArrowDown size={15} /></a>
           </div>
@@ -366,7 +410,7 @@ function App() {
         <section className="section-pad intro">
           <SectionTitle eyebrow="Our Story">Mempersatukan dua hati</SectionTitle>
           <p className="intro-copy">{wedding.intro}</p>
-          <div className="intro-signature">Resta <span>&</span> Surya</div>
+          <div className="intro-signature">{brideDisplayName} <span>&</span> {groomDisplayName}</div>
           <div className="tiny-flower">✦</div>
         </section>
 
@@ -414,7 +458,7 @@ function App() {
               <p className="event-label">Akad Nikah</p>
               <h3>{wedding.akad.title}</h3>
               <p>{wedding.akad.time}</p>
-              <a className="text-link" href={dateCalendarUrl(wedding.akad, wedding.address)} target="_blank" rel="noreferrer">Simpan ke kalender</a>
+              <a className="text-link" href={dateCalendarUrl(wedding.akad, wedding.address, coupleNames)} target="_blank" rel="noreferrer">Simpan ke kalender</a>
             </div>
 
             <div className="event-card">
@@ -422,7 +466,7 @@ function App() {
               <p className="event-label">Resepsi</p>
               <h3>{wedding.reception.title}</h3>
               <p>{wedding.reception.time}</p>
-              <a className="text-link" href={dateCalendarUrl(wedding.reception, wedding.address)} target="_blank" rel="noreferrer">Simpan ke kalender</a>
+              <a className="text-link" href={dateCalendarUrl(wedding.reception, wedding.address, coupleNames)} target="_blank" rel="noreferrer">Simpan ke kalender</a>
             </div>
 
             <div className="event-card venue-card">
@@ -463,7 +507,7 @@ function App() {
           <p className="gift-intro">
             Kehadiran dan doa Anda adalah hadiah terindah bagi kami. Namun, jika berhalangan hadir dan ingin mengirim tanda kasih, Anda dapat mengirimkannya melalui rekening berikut.
           </p>
-          <button className="button button-gold gift-open-button" type="button" onClick={() => { setGiftStatus(''); setGiftOpen(true); }}>
+          <button className="button button-gold gift-open-button" type="button" onClick={() => { setGiftStatus(''); setGiftReportStatus(''); setGiftReport({ name: guestName, amount: '' }); setGiftOpen(true); }}>
             <Gift size={16} /> Kirim Hadiah
           </button>
         </section>
@@ -524,7 +568,7 @@ function App() {
 
         <section className="section-pad closing">
           <div className="closing-monogram">R<span>&</span>S</div>
-          <h2>Resta <em>&</em> Surya</h2>
+          <h2>{brideDisplayName} <em>&</em> {groomDisplayName}</h2>
           <p>Terima kasih atas doa dan kehadiran Anda.</p>
         </section>
       </main>
@@ -575,6 +619,53 @@ function App() {
                 Salin nomor rekening
               </button>
               <p className="gift-status" role="status" aria-live="polite">{giftStatus}</p>
+              <form className="gift-report-form" onSubmit={handleGiftReportSubmit}>
+                <h3>Sudah melakukan transfer?</h3>
+                <p>Isi nama dan nominal transfer. Laporan ini akan kami cocokkan secara manual dengan mutasi rekening.</p>
+                <label className="field-group">
+                  <span>Nama Anda</span>
+                  <input maxLength={100} required value={giftReport.name} onChange={(event) => setGiftReport({ ...giftReport, name: event.target.value })} placeholder="Masukkan nama" />
+                </label>
+                <label className="field-group">
+                  <span>Nominal transfer (Rp)</span>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={18} required value={giftReport.amount} onChange={(event) => setGiftReport({ ...giftReport, amount: event.target.value.replace(/\D/g, '') })} placeholder="Contoh: 100000" />
+                </label>
+                <button className="button button-gold" type="submit" disabled={busy}>{busy ? 'Mengirim...' : 'Kirim laporan transfer'}</button>
+                {giftReportStatus ? <p className="gift-report-status" role="status" aria-live="polite">{giftReportStatus}</p> : null}
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {giftThanksOpen && (
+          <motion.div
+            className="gift-modal-backdrop"
+            role="presentation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setGiftThanksOpen(false)}
+          >
+            <motion.div
+              className="gift-modal gift-thanks-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="gift-thanks-title"
+              initial={{ opacity: 0, y: 18, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button className="gift-modal-close" type="button" onClick={() => setGiftThanksOpen(false)} aria-label="Tutup ucapan terima kasih">
+                <X size={18} />
+              </button>
+              <div className="gift-icon"><Check size={22} /></div>
+              <span className="eyebrow">Wedding Gift</span>
+              <h2 id="gift-thanks-title">Terima kasih</h2>
+              <p className="gift-thanks-message">Semoga Allah membalasmu dengan kebaikan.</p>
+              <button className="button button-gold" type="button" onClick={() => setGiftThanksOpen(false)}>Selesai</button>
             </motion.div>
           </motion.div>
         )}
@@ -585,13 +676,18 @@ function App() {
           <motion.div className="lightbox" role="dialog" aria-modal="true" aria-label="Galeri foto pernikahan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setGalleryIndex(null)}>
             <button type="button" className="lightbox-close" onClick={() => setGalleryIndex(null)} aria-label="Tutup galeri"><X size={18} /></button>
             <button type="button" className="lightbox-nav left" onClick={(event) => { event.stopPropagation(); setGalleryIndex((index) => (index - 1 + gallery.length) % gallery.length); }} aria-label="Galeri sebelumnya"><ChevronLeft size={22} /></button>
-            <img src={gallery[galleryIndex]} alt={wedding.photos.galleryAlt?.[galleryIndex] || `Foto Resta dan Surya ${galleryIndex + 1}`} onClick={(event) => event.stopPropagation()} />
+            <img src={gallery[galleryIndex]} alt={wedding.photos.galleryAlt?.[galleryIndex] || `Foto ${coupleNames} ${galleryIndex + 1}`} onClick={(event) => event.stopPropagation()} />
             <button type="button" className="lightbox-nav right" onClick={(event) => { event.stopPropagation(); setGalleryIndex((index) => (index + 1) % gallery.length); }} aria-label="Galeri selanjutnya"><ChevronRight size={22} /></button>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
+}
+
+function App() {
+  const isAdminRoute = window.location.pathname.replace(/\/+$/, '') === '/admin';
+  return isAdminRoute ? <AdminPage /> : <WeddingInvitation />;
 }
 
 export default App;

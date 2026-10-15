@@ -28,6 +28,13 @@ create table if not exists public.wedding_gift_accounts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.wedding_gift_reports (
+  id uuid primary key default gen_random_uuid(),
+  guest_name text not null check (char_length(guest_name) between 1 and 100),
+  amount numeric not null check (amount > 0 and amount = trunc(amount) and amount < 1000000000000000000),
+  created_at timestamptz not null default now()
+);
+
 insert into public.wedding_gift_accounts (id, bank_name, account_number, account_name)
 values (1, 'BCA', '1482351390', 'Resta Syahwa Hafidza')
 on conflict (id) do nothing;
@@ -39,6 +46,7 @@ where id = 1 and (bank_name is null or trim(bank_name) = '');
 alter table public.wedding_rsvps enable row level security;
 alter table public.wedding_wishes enable row level security;
 alter table public.wedding_gift_accounts enable row level security;
+alter table public.wedding_gift_reports enable row level security;
 
 -- RSVP: allow anonymous inserts only; do not expose RSVP list to the public.
 drop policy if exists "Anyone can submit RSVP" on public.wedding_rsvps;
@@ -65,9 +73,17 @@ drop policy if exists "Anyone can read wedding gift account" on public.wedding_g
 create policy "Anyone can read wedding gift account" on public.wedding_gift_accounts
   for select to anon, authenticated using (true);
 
+drop policy if exists "Anyone can submit wedding gift report" on public.wedding_gift_reports;
+create policy "Anyone can submit wedding gift report" on public.wedding_gift_reports
+  for insert to anon, authenticated with check (
+    char_length(trim(guest_name)) between 1 and 100
+    and amount > 0
+  );
+
 grant insert on public.wedding_rsvps to anon, authenticated;
 grant select, insert on public.wedding_wishes to anon, authenticated;
 grant select on public.wedding_gift_accounts to anon, authenticated;
+grant insert on public.wedding_gift_reports to anon, authenticated;
 
 -- Submit both records in one database transaction when Supabase is the active backend.
 create or replace function public.submit_wedding_rsvp_and_wish(

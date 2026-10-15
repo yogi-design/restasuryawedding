@@ -100,6 +100,33 @@ CREATE TABLE IF NOT EXISTS wedding_wishes (
   KEY idx_wishes_created_at (created_at)
 );
 
+CREATE TABLE IF NOT EXISTS wedding_gift_reports (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  guest_name VARCHAR(100) NOT NULL,
+  amount DECIMAL(18, 0) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CHECK (amount > 0),
+  KEY idx_gift_reports_created_at (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  password_hash VARCHAR(200) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login_at TIMESTAMP NULL,
+  UNIQUE KEY uq_admin_users_username (username),
+  KEY idx_admin_users_active (is_active)
+);
+
+CREATE TABLE IF NOT EXISTS daftar_undangan (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  nama_undangan VARCHAR(255) NULL,
+  alamat_undangan VARCHAR(255) NULL,
+  no_wa VARCHAR(255) NULL
+);
+
 INSERT IGNORE INTO wedding_settings
   (id, title, date_iso, date_label, address, intro, cover_image, music_path)
 VALUES
